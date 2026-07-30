@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { 
     setFile, currentPage, numPages, setCurrentPage, 
-    scale, setScale, rotation, setRotation,
+    scale, setScale, rotation, setRotation, file,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
@@ -30,6 +30,36 @@ const App: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+    }
+  };
+
+  // FUNÇÕES DE NAVEGAÇÃO DA BARRA INFERIOR
+  const handlePrevPage = () => {
+    const newPage = Math.max(1, currentPage - 1);
+    setCurrentPage(newPage);
+    if (viewMode === 'scroll') {
+      document.getElementById(`pdf-page-${newPage}`)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleNextPage = () => {
+    const newPage = Math.min(numPages || 1, currentPage + 1);
+    setCurrentPage(newPage);
+    if (viewMode === 'scroll') {
+      document.getElementById(`pdf-page-${newPage}`)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleJumpToPage = () => {
+    const page = prompt(`Ir para página (1 a ${numPages}):`, currentPage.toString());
+    if (page) {
+      const pageNum = parseInt(page);
+      if (pageNum >= 1 && pageNum <= (numPages || 1)) {
+        setCurrentPage(pageNum);
+        if (viewMode === 'scroll') {
+          document.getElementById(`pdf-page-${pageNum}`)?.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
     }
   };
 
@@ -92,10 +122,8 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
-      {/* CORREÇÃO: Reduzido o padding geral (p-2) e o gap entre a logo e os botões (gap-2) */}
       <header className={`flex flex-col md:flex-row gap-2 items-center justify-between p-2 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
         
-        {/* CORREÇÃO: "Lume" perfeitamente centralizado usando absolute no botão de voltar */}
         <div className="relative flex items-center justify-center w-full md:w-auto min-h-[32px]">
           <button 
             onClick={() => setFile(null)} 
@@ -107,7 +135,6 @@ const App: React.FC = () => {
           <h1 className="text-xl font-black text-blue-600 dark:text-blue-400">Lume</h1>
         </div>
         
-        {/* CORREÇÃO: overflow-x-auto e whitespace-nowrap para os botões rolarem para o lado no celular em 1 única linha */}
         <div className="flex w-full md:w-auto items-center justify-start md:justify-center gap-1.5 overflow-x-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
@@ -156,9 +183,18 @@ const App: React.FC = () => {
       </main>
 
       <footer className={`flex items-center justify-center gap-6 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 pb-safe ${headerClasses[activeTheme]} ${viewMode === 'scroll' ? 'md:hidden justify-between' : 'justify-center'}`}>
-        <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronLeft size={24} /></button>
-        <span className="text-sm font-medium px-4 py-2 rounded-lg opacity-80">Página {currentPage} de {numPages || '-'}</span>
-        <button onClick={() => setCurrentPage(Math.min(numPages || 1, currentPage + 1))} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronRight size={24} /></button>
+        <button onClick={handlePrevPage} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronLeft size={24} /></button>
+        
+        {/* TEXTO AGORA É CLICÁVEL COM EFEITO DE HOVER */}
+        <span 
+          onClick={handleJumpToPage} 
+          className={`text-sm font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-black/5'}`}
+          title="Ir para página"
+        >
+          Página {currentPage} de {numPages || '-'}
+        </span>
+        
+        <button onClick={handleNextPage} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronRight size={24} /></button>
       </footer>
     </div>
   );

@@ -21,6 +21,42 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
+  // NOVO: Radar inteligente que sabe qual página está no meio da tela no modo Scroll
+  useEffect(() => {
+    if (viewMode !== 'scroll' || !numPages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // Se a página cruzar a linha imaginária do centro da tela...
+          if (entry.isIntersecting) {
+            const pageNum = Number(entry.target.getAttribute('data-page-number'));
+            if (pageNum) {
+              setCurrentPage(pageNum);
+            }
+          }
+        });
+      },
+      {
+        root: containerRef.current,
+        // Cria uma linha fininha bem no centro exato da tela para fazer a leitura
+        rootMargin: '-50% 0px -49% 0px', 
+        threshold: 0
+      }
+    );
+
+    // Dá um tempinho para o React desenhar as páginas antes de ligar o radar
+    const timeout = setTimeout(() => {
+      const pageNodes = document.querySelectorAll('.pdf-page-container');
+      pageNodes.forEach((node) => observer.observe(node));
+    }, 500);
+
+    return () => {
+      clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, [viewMode, numPages, setCurrentPage, scale]); 
+
   useEffect(() => {
     const viewer = containerRef.current;
     const handleWheel = (e: WheelEvent) => {
@@ -146,7 +182,6 @@ export const PdfViewer: React.FC = () => {
       const diff = dist - pinchDistance;
       
       if (Math.abs(diff) > 15) { 
-        // Suavizei a velocidade do zoom para 0.05 para ficar menos brusco no celular
         const zoomAmount = diff > 0 ? 0.05 : -0.05;
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
         setPinchDistance(dist); 
@@ -186,7 +221,6 @@ export const PdfViewer: React.FC = () => {
     <div 
       ref={containerRef}
       className="p-4 min-h-full h-full overflow-auto scroll-smooth text-center"
-      // A MÁGICA AQUI: touch-action: pan-x pan-y bloqueia o zoom do navegador, mas permite rolar a página normalmente
       style={{ touchAction: 'pan-x pan-y' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -203,7 +237,12 @@ export const PdfViewer: React.FC = () => {
       >
         
         {viewMode === 'scroll' && Array.from(new Array(numPages || 0), (_, index) => (
-          <div key={`page-${index + 1}`} id={`pdf-page-${index + 1}`} className="shadow-xl bg-white relative inline-block mx-auto max-w-full">
+          <div 
+            key={`page-${index + 1}`} 
+            id={`pdf-page-${index + 1}`} 
+            data-page-number={index + 1} /* Atributo pro radar conseguir ler o número da página */
+            className="pdf-page-container shadow-xl bg-white relative inline-block mx-auto max-w-full"
+          >
             <Page 
               pageNumber={index + 1} 
               scale={scale} 
