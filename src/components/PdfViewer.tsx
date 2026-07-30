@@ -13,7 +13,6 @@ export const PdfViewer: React.FC = () => {
   const [extractedText, setExtractedText] = useState<string>('');
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Estados do toque e pinça
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [pinchDistance, setPinchDistance] = useState<number | null>(null);
@@ -22,13 +21,12 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
-  // CORREÇÃO: Alt + Scroll para Zoom no PC
   useEffect(() => {
     const viewer = containerRef.current;
     const handleWheel = (e: WheelEvent) => {
       if (e.altKey) {
-        e.preventDefault(); // Impede a página de rolar para baixo
-        const zoomAmount = e.deltaY < 0 ? 0.1 : -0.1; // Sobe dá zoom, desce tira zoom
+        e.preventDefault(); 
+        const zoomAmount = e.deltaY < 0 ? 0.1 : -0.1;
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
       }
     };
@@ -125,18 +123,15 @@ export const PdfViewer: React.FC = () => {
     }
   }, [currentPage, viewMode, isTextMode]);
 
-  // CORREÇÃO: Lógica Híbrida (Pinçar e Arrastar)
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      // 2 DEDOS (Zoom)
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
       setPinchDistance(dist);
-      setTouchStart(null); // Cancela qualquer clique/arrasto simples
+      setTouchStart(null); 
     } else if (e.touches.length === 1) {
-      // 1 DEDO (Arrastar a página)
       setTouchEnd(null);
       setTouchStart(e.targetTouches[0].clientX);
     }
@@ -144,17 +139,17 @@ export const PdfViewer: React.FC = () => {
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchDistance !== null) {
-      // Movimentando 2 DEDOS (Zoom)
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
       const diff = dist - pinchDistance;
       
-      if (Math.abs(diff) > 15) { // Sensibilidade da pinça
-        const zoomAmount = diff > 0 ? 0.1 : -0.1;
+      if (Math.abs(diff) > 15) { 
+        // Suavizei a velocidade do zoom para 0.05 para ficar menos brusco no celular
+        const zoomAmount = diff > 0 ? 0.05 : -0.05;
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
-        setPinchDistance(dist); // Atualiza pra continuar aproximando suavemente
+        setPinchDistance(dist); 
       }
     } else if (e.touches.length === 1) {
       setTouchEnd(e.targetTouches[0].clientX);
@@ -162,15 +157,13 @@ export const PdfViewer: React.FC = () => {
   };
 
   const onTouchEnd = () => {
-    setPinchDistance(null); // Soltou os dedos do zoom
+    setPinchDistance(null); 
     
-    // Se soltou 1 dedo após arrastar:
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
     
-    // Só muda de página no celular se não estiver com o zoom ampliado
     if (viewMode === 'book' && scale <= 1.0) {
       if (isLeftSwipe) {
         setCurrentPage(Math.min(numPages || 1, currentPage + 1));
@@ -193,6 +186,8 @@ export const PdfViewer: React.FC = () => {
     <div 
       ref={containerRef}
       className="p-4 min-h-full h-full overflow-auto scroll-smooth text-center"
+      // A MÁGICA AQUI: touch-action: pan-x pan-y bloqueia o zoom do navegador, mas permite rolar a página normalmente
+      style={{ touchAction: 'pan-x pan-y' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
