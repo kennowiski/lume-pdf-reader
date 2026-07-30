@@ -123,10 +123,11 @@ const App: React.FC = () => {
     <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex flex-col md:flex-row gap-2 items-center justify-between p-2 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
         
-        <div className="relative flex items-center justify-center w-full md:w-auto min-h-[32px]">
+        {/* CORREÇÃO AQUI: md:justify-start e md:gap-2 e md:static corrigem a posição no computador */}
+        <div className="relative flex items-center justify-center md:justify-start w-full md:w-auto min-h-[32px] md:gap-2">
           <button 
             onClick={() => setFile(null)} 
-            className={`absolute left-0 p-1.5 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+            className={`absolute left-0 md:static p-1.5 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             title="Voltar ao Início"
           >
             <ArrowLeft size={20} />
