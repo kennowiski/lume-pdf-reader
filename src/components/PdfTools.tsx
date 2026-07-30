@@ -59,9 +59,9 @@ export const PdfTools: React.FC = () => {
       if (activeTool === 'merge') {
         const mergedPdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
-          // CORREÇÃO AQUI: Forçando a tipagem como ArrayBuffer puro para o TypeScript não reclamar
-          const pdfBytes = (await files[i].arrayBuffer()) as ArrayBuffer;
-          const pdf = await PDFDocument.load(pdfBytes);
+          const pdfBytes = await files[i].arrayBuffer();
+          // SOLUÇÃO: 'as any' força o TypeScript da Vercel a aceitar o dado
+          const pdf = await PDFDocument.load(pdfBytes as any);
           const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
           copiedPages.forEach((page) => mergedPdf.addPage(page));
         }
@@ -70,9 +70,9 @@ export const PdfTools: React.FC = () => {
       } 
       
       else if (activeTool === 'split') {
-        // CORREÇÃO AQUI TAMBÉM
-        const pdfBytes = (await files[0].arrayBuffer()) as ArrayBuffer;
-        const pdf = await PDFDocument.load(pdfBytes);
+        const pdfBytes = await files[0].arrayBuffer();
+        // SOLUÇÃO
+        const pdf = await PDFDocument.load(pdfBytes as any);
         const totalPages = pdf.getPageCount();
         
         let start = parseInt(splitStart) - 1;
@@ -95,11 +95,11 @@ export const PdfTools: React.FC = () => {
         const pdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          // CORREÇÃO AQUI TAMBÉM
-          const bytes = (await file.arrayBuffer()) as ArrayBuffer;
+          const bytes = await file.arrayBuffer();
           let image;
-          if (file.type === 'image/jpeg') image = await pdf.embedJpg(bytes);
-          else if (file.type === 'image/png') image = await pdf.embedPng(bytes);
+          // SOLUÇÃO
+          if (file.type === 'image/jpeg') image = await pdf.embedJpg(bytes as any);
+          else if (file.type === 'image/png') image = await pdf.embedPng(bytes as any);
           else continue;
 
           const page = pdf.addPage([image.width, image.height]);
