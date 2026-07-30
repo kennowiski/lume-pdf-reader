@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { 
     setFile, currentPage, numPages, setCurrentPage, 
-    scale, setScale, rotation, setRotation,
+    scale, setScale, rotation, setRotation, file,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
@@ -92,8 +92,8 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-screen w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
-      <header className={`flex flex-col md:flex-row gap-4 items-center justify-between p-3 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
-        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+      <header className={`flex flex-col md:flex-row gap-3 items-center justify-between p-3 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
+        <div className="flex items-center justify-between w-full md:w-auto">
           <button 
             onClick={() => setFile(null)} 
             className={`p-2 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
@@ -101,10 +101,11 @@ const App: React.FC = () => {
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-black ml-1 text-blue-600 dark:text-blue-400">Lume</h1>
+          <h1 className="text-xl font-black ml-1 text-blue-600 dark:text-blue-400 flex-1 text-center md:text-left">Lume</h1>
         </div>
         
-        <div className="flex w-full md:w-auto items-center justify-center gap-2 overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+        {/* CORREÇÃO: flex-wrap aplicado aqui para os botões descerem de linha naturalmente no celular */}
+        <div className="flex flex-wrap w-full md:w-auto items-center justify-center gap-2 pb-1 md:pb-0">
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
             <button onClick={() => setViewMode('scroll')} className={`p-2 rounded flex items-center gap-1 ${viewMode === 'scroll' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
               <ScrollText size={18} /> <span className="text-xs font-bold hidden sm:block">Scroll</span>

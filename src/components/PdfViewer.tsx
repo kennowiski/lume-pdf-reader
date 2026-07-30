@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Document, Page } from 'react-pdf';
 import { usePdfStore } from '../store/usePdfStore';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -16,6 +16,21 @@ export const PdfViewer: React.FC = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const minSwipeDistance = 50; 
+
+  // CORREÇÃO: Captura a largura da tela para dispositivos móveis
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>();
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth - 32); // -32 compensa as margens p-4
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   const activeTheme = theme === 'system' 
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') 
@@ -123,6 +138,7 @@ export const PdfViewer: React.FC = () => {
 
   return (
     <div 
+      ref={containerRef}
       className="p-4 min-h-full h-full overflow-auto scroll-smooth text-center"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -144,6 +160,7 @@ export const PdfViewer: React.FC = () => {
               pageNumber={index + 1} 
               scale={scale} 
               rotate={rotation}
+              width={containerWidth && containerWidth < 768 ? containerWidth : undefined} /* Aplica limites só no Mobile */
               renderTextLayer={true}
               renderAnnotationLayer={true}
             />
@@ -158,6 +175,7 @@ export const PdfViewer: React.FC = () => {
                 pageNumber={currentPage} 
                 scale={scale} 
                 rotate={rotation}
+                width={containerWidth && containerWidth < 768 ? containerWidth : undefined} /* Aplica limites só no Mobile */
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
               />
