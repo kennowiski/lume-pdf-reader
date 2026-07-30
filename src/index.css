@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Animação que simula a página virando em 3D */
+@keyframes pageTurn {
+  0% { 
+    opacity: 0.3; 
+    transform: perspective(1200px) rotateY(-20deg) scale(0.95); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: perspective(1200px) rotateY(0deg) scale(1); 
+  }
+}
+
+.animate-page-turn {
+  animation: pageTurn 0.4s ease-out forwards;
+}
+
+/* Oculta as barras de rolagem nativas no menu mobile para ficar mais bonito */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
