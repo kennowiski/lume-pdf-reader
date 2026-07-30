@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { 
     setFile, currentPage, numPages, setCurrentPage, 
-    scale, setScale, rotation, setRotation, file,
+    scale, setScale, rotation, setRotation,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
@@ -104,7 +104,6 @@ const App: React.FC = () => {
           <h1 className="text-xl font-black ml-1 text-blue-600 dark:text-blue-400 flex-1 text-center md:text-left">Lume</h1>
         </div>
         
-        {/* CORREÇÃO: flex-wrap aplicado aqui para os botões descerem de linha naturalmente no celular */}
         <div className="flex flex-wrap w-full md:w-auto items-center justify-center gap-2 pb-1 md:pb-0">
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
             <button onClick={() => setViewMode('scroll')} className={`p-2 rounded flex items-center gap-1 ${viewMode === 'scroll' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
