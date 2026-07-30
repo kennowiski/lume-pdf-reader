@@ -91,53 +91,57 @@ const App: React.FC = () => {
   }
 
   return (
-    // CORREÇÃO: Altura dinâmica (h-[100dvh]) para garantir que a barra inferior nunca suma em celulares
     <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
-      <header className={`flex flex-col md:flex-row gap-3 items-center justify-between p-3 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
-        <div className="flex items-center justify-between w-full md:w-auto">
+      {/* CORREÇÃO: Reduzido o padding geral (p-2) e o gap entre a logo e os botões (gap-2) */}
+      <header className={`flex flex-col md:flex-row gap-2 items-center justify-between p-2 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
+        
+        {/* CORREÇÃO: "Lume" perfeitamente centralizado usando absolute no botão de voltar */}
+        <div className="relative flex items-center justify-center w-full md:w-auto min-h-[32px]">
           <button 
             onClick={() => setFile(null)} 
-            className={`p-2 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+            className={`absolute left-0 p-1.5 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             title="Voltar ao Início"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-black ml-1 text-blue-600 dark:text-blue-400 flex-1 text-center md:text-left">Lume</h1>
+          <h1 className="text-xl font-black text-blue-600 dark:text-blue-400">Lume</h1>
         </div>
         
-        <div className="flex flex-wrap w-full md:w-auto items-center justify-center gap-2 pb-1 md:pb-0">
+        {/* CORREÇÃO: overflow-x-auto e whitespace-nowrap para os botões rolarem para o lado no celular em 1 única linha */}
+        <div className="flex w-full md:w-auto items-center justify-start md:justify-center gap-1.5 overflow-x-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
-            <button onClick={() => setViewMode('scroll')} className={`p-2 rounded flex items-center gap-1 ${viewMode === 'scroll' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
+            <button onClick={() => setViewMode('scroll')} className={`p-1.5 rounded flex items-center gap-1 ${viewMode === 'scroll' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
               <ScrollText size={18} /> <span className="text-xs font-bold hidden sm:block">Scroll</span>
             </button>
-            <button onClick={() => setViewMode('book')} className={`p-2 rounded flex items-center gap-1 ${viewMode === 'book' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
+            <button onClick={() => setViewMode('book')} className={`p-1.5 rounded flex items-center gap-1 ${viewMode === 'book' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
               <Book size={18} /> <span className="text-xs font-bold hidden sm:block">Livro</span>
             </button>
-            <div className={`w-px h-6 mx-1 ${activeTheme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+            <div className={`w-px h-5 mx-1 ${activeTheme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
             <button 
               onClick={() => setIsTextMode(!isTextMode)} 
               disabled={viewMode !== 'book'}
-              className={`p-2 rounded flex items-center gap-1 ${viewMode !== 'book' ? 'opacity-30 cursor-not-allowed' : isTextMode ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}
+              className={`p-1.5 rounded flex items-center gap-1 ${viewMode !== 'book' ? 'opacity-30 cursor-not-allowed' : isTextMode ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}
             >
               <AlignLeft size={18} /> <span className="text-xs font-bold hidden sm:block">Ler Texto</span>
             </button>
           </div>
 
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
-            <button onClick={() => setTheme('system')} className={`p-2 rounded ${theme === 'system' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : activeTheme === 'sepia' ? 'bg-[#f4ecd8] shadow text-amber-900' : 'bg-white shadow text-gray-900') : 'hover:bg-white/30 text-gray-500'}`} title="Automático"><Monitor size={18} /></button>
-            <button onClick={() => setTheme('light')} className={`p-2 rounded ${theme === 'light' ? 'bg-white shadow text-blue-600' : 'hover:bg-white/50 text-gray-500'}`} title="Modo Claro"><Sun size={18} /></button>
-            <button onClick={() => setTheme('sepia')} className={`p-2 rounded ${theme === 'sepia' ? 'bg-[#f4ecd8] shadow text-amber-700' : 'hover:bg-white/50 text-gray-500'}`} title="Modo Sépia"><BookOpen size={18} /></button>
-            <button onClick={() => setTheme('dark')} className={`p-2 rounded ${theme === 'dark' ? 'bg-gray-600 shadow text-blue-400' : 'hover:bg-black/10 text-gray-500'}`} title="Modo Escuro"><Moon size={18} /></button>
+            <button onClick={() => setTheme('system')} className={`p-1.5 rounded ${theme === 'system' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : activeTheme === 'sepia' ? 'bg-[#f4ecd8] shadow text-amber-900' : 'bg-white shadow text-gray-900') : 'hover:bg-white/30 text-gray-500'}`} title="Automático"><Monitor size={18} /></button>
+            <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-white shadow text-blue-600' : 'hover:bg-white/50 text-gray-500'}`} title="Modo Claro"><Sun size={18} /></button>
+            <button onClick={() => setTheme('sepia')} className={`p-1.5 rounded ${theme === 'sepia' ? 'bg-[#f4ecd8] shadow text-amber-700' : 'hover:bg-white/50 text-gray-500'}`} title="Modo Sépia"><BookOpen size={18} /></button>
+            <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-gray-600 shadow text-blue-400' : 'hover:bg-black/10 text-gray-500'}`} title="Modo Escuro"><Moon size={18} /></button>
           </div>
 
-          <div className={`flex shrink-0 items-center space-x-2 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
-            <button onClick={() => setScale(Math.max(0.4, scale - 0.2))} className="p-2 hover:bg-white/50 rounded shadow-sm"><ZoomOut size={18} /></button>
+          <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
+            <button onClick={() => setScale(Math.max(0.4, scale - 0.2))} className="p-1.5 hover:bg-white/50 rounded shadow-sm"><ZoomOut size={18} /></button>
             <span className="text-sm font-mono w-10 text-center">{Math.round(scale * 100)}%</span>
-            <button onClick={() => setScale(scale + 0.2)} className="p-2 hover:bg-white/50 rounded shadow-sm"><ZoomIn size={18} /></button>
+            <button onClick={() => setScale(scale + 0.2)} className="p-1.5 hover:bg-white/50 rounded shadow-sm"><ZoomIn size={18} /></button>
             {!isTextMode && (
               <>
-                <div className={`w-px h-6 mx-1 ${activeTheme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-                <button onClick={() => setRotation((rotation + 90) % 360)} className="p-2 hover:bg-white/50 rounded shadow-sm"><RotateCw size={18} /></button>
+                <div className={`w-px h-5 mx-1 ${activeTheme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+                <button onClick={() => setRotation((rotation + 90) % 360)} className="p-1.5 hover:bg-white/50 rounded shadow-sm"><RotateCw size={18} /></button>
               </>
             )}
           </div>
