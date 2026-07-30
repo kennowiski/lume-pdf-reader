@@ -5,7 +5,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 export const PdfViewer: React.FC = () => {
-  const { file, scale, rotation, setNumPages, numPages, theme, viewMode, currentPage, setCurrentPage, isTextMode } = usePdfStore();
+  const { file, scale, setScale, rotation, setNumPages, numPages, theme, viewMode, currentPage, setCurrentPage, isTextMode } = usePdfStore();
   const [loading, setLoading] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   
@@ -13,18 +13,40 @@ export const PdfViewer: React.FC = () => {
   const [extractedText, setExtractedText] = useState<string>('');
   const [isExtracting, setIsExtracting] = useState(false);
 
+  // Estados do toque e pinça
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [pinchDistance, setPinchDistance] = useState<number | null>(null);
   const minSwipeDistance = 50; 
 
-  // CORREÇÃO: Captura a largura da tela para dispositivos móveis
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
+
+  // CORREÇÃO: Alt + Scroll para Zoom no PC
+  useEffect(() => {
+    const viewer = containerRef.current;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.altKey) {
+        e.preventDefault(); // Impede a página de rolar para baixo
+        const zoomAmount = e.deltaY < 0 ? 0.1 : -0.1; // Sobe dá zoom, desce tira zoom
+        setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
+      }
+    };
+
+    if (viewer) {
+      viewer.addEventListener('wheel', handleWheel, { passive: false });
+    }
+    return () => {
+      if (viewer) {
+        viewer.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, [scale, setScale]);
 
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth - 32); // -32 compensa as margens p-4
+        setContainerWidth(containerRef.current.clientWidth - 32);
       }
     };
     updateWidth();
@@ -103,22 +125,53 @@ export const PdfViewer: React.FC = () => {
     }
   }, [currentPage, viewMode, isTextMode]);
 
+  // CORREÇÃO: Lógica Híbrida (Pinçar e Arrastar)
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    if (e.touches.length === 2) {
+      // 2 DEDOS (Zoom)
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setPinchDistance(dist);
+      setTouchStart(null); // Cancela qualquer clique/arrasto simples
+    } else if (e.touches.length === 1) {
+      // 1 DEDO (Arrastar a página)
+      setTouchEnd(null);
+      setTouchStart(e.targetTouches[0].clientX);
+    }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    if (e.touches.length === 2 && pinchDistance !== null) {
+      // Movimentando 2 DEDOS (Zoom)
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const diff = dist - pinchDistance;
+      
+      if (Math.abs(diff) > 15) { // Sensibilidade da pinça
+        const zoomAmount = diff > 0 ? 0.1 : -0.1;
+        setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
+        setPinchDistance(dist); // Atualiza pra continuar aproximando suavemente
+      }
+    } else if (e.touches.length === 1) {
+      setTouchEnd(e.targetTouches[0].clientX);
+    }
   };
 
   const onTouchEnd = () => {
+    setPinchDistance(null); // Soltou os dedos do zoom
+    
+    // Se soltou 1 dedo após arrastar:
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
     
-    if (viewMode === 'book' && scale <= 1.2) {
+    // Só muda de página no celular se não estiver com o zoom ampliado
+    if (viewMode === 'book' && scale <= 1.0) {
       if (isLeftSwipe) {
         setCurrentPage(Math.min(numPages || 1, currentPage + 1));
       }
@@ -160,7 +213,7 @@ export const PdfViewer: React.FC = () => {
               pageNumber={index + 1} 
               scale={scale} 
               rotate={rotation}
-              width={containerWidth && containerWidth < 768 ? containerWidth : undefined} /* Aplica limites só no Mobile */
+              width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
               renderTextLayer={true}
               renderAnnotationLayer={true}
             />
@@ -175,7 +228,7 @@ export const PdfViewer: React.FC = () => {
                 pageNumber={currentPage} 
                 scale={scale} 
                 rotate={rotation}
-                width={containerWidth && containerWidth < 768 ? containerWidth : undefined} /* Aplica limites só no Mobile */
+                width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
               />

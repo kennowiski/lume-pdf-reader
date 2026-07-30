@@ -91,7 +91,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`flex flex-col h-screen w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
+    // CORREÇÃO: Altura dinâmica (h-[100dvh]) para garantir que a barra inferior nunca suma em celulares
+    <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex flex-col md:flex-row gap-3 items-center justify-between p-3 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
         <div className="flex items-center justify-between w-full md:w-auto">
           <button 
