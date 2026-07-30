@@ -40,7 +40,8 @@ export const PdfTools: React.FC = () => {
     sepia: 'bg-[#e9deb5] border-[#d4c391]'
   };
 
-  const downloadBlob = (bytes: Uint8Array, filename: string) => {
+  // CORREÇÃO: Transformamos bytes em 'any' para a Vercel não bloquear o Blob
+  const downloadBlob = (bytes: any, filename: string) => {
     const blob = new Blob([bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -60,7 +61,6 @@ export const PdfTools: React.FC = () => {
         const mergedPdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
           const pdfBytes = await files[i].arrayBuffer();
-          // SOLUÇÃO: 'as any' força o TypeScript da Vercel a aceitar o dado
           const pdf = await PDFDocument.load(pdfBytes as any);
           const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
           copiedPages.forEach((page) => mergedPdf.addPage(page));
@@ -71,7 +71,6 @@ export const PdfTools: React.FC = () => {
       
       else if (activeTool === 'split') {
         const pdfBytes = await files[0].arrayBuffer();
-        // SOLUÇÃO
         const pdf = await PDFDocument.load(pdfBytes as any);
         const totalPages = pdf.getPageCount();
         
@@ -97,7 +96,6 @@ export const PdfTools: React.FC = () => {
           const file = files[i];
           const bytes = await file.arrayBuffer();
           let image;
-          // SOLUÇÃO
           if (file.type === 'image/jpeg') image = await pdf.embedJpg(bytes as any);
           else if (file.type === 'image/png') image = await pdf.embedPng(bytes as any);
           else continue;
