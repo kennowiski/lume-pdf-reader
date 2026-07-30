@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { 
     setFile, currentPage, numPages, setCurrentPage, 
-    scale, setScale, rotation, setRotation, file,
+    scale, setScale, rotation, setRotation,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
@@ -33,7 +33,6 @@ const App: React.FC = () => {
     }
   };
 
-  // FUNÇÕES DE NAVEGAÇÃO DA BARRA INFERIOR
   const handlePrevPage = () => {
     const newPage = Math.max(1, currentPage - 1);
     setCurrentPage(newPage);
@@ -185,7 +184,6 @@ const App: React.FC = () => {
       <footer className={`flex items-center justify-center gap-6 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 pb-safe ${headerClasses[activeTheme]} ${viewMode === 'scroll' ? 'md:hidden justify-between' : 'justify-center'}`}>
         <button onClick={handlePrevPage} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronLeft size={24} /></button>
         
-        {/* TEXTO AGORA É CLICÁVEL COM EFEITO DE HOVER */}
         <span 
           onClick={handleJumpToPage} 
           className={`text-sm font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-black/5'}`}
