@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Document, Page } from 'react-pdf';
 import { usePdfStore } from '../store/usePdfStore';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -13,10 +13,8 @@ export const PdfViewer: React.FC = () => {
   const [extractedText, setExtractedText] = useState<string>('');
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Estados para capturar o Gesto de Arrastar (Swipe)
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  // Distância mínima (em pixels) para ser considerado um "swipe" válido
   const minSwipeDistance = 50; 
 
   const activeTheme = theme === 'system' 
@@ -90,14 +88,13 @@ export const PdfViewer: React.FC = () => {
     }
   }, [currentPage, viewMode, isTextMode]);
 
-  // FUNÇÕES DE SWIPE (Arrastar na tela)
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null); // Reseta o final do toque
-    setTouchStart(e.targetTouches[0].clientX); // Grava onde o dedo encostou na tela
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX); // Grava por onde o dedo passou
+    setTouchEnd(e.targetTouches[0].clientX);
   };
 
   const onTouchEnd = () => {
@@ -106,14 +103,11 @@ export const PdfViewer: React.FC = () => {
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
     
-    // Só muda de página se estiver no Modo Livro e NÃO estiver dando zoom para perto (onde o arrastar serve pra mover a página)
     if (viewMode === 'book' && scale <= 1.2) {
       if (isLeftSwipe) {
-        // Arrastou pra esquerda -> Próxima página
         setCurrentPage(Math.min(numPages || 1, currentPage + 1));
       }
       if (isRightSwipe) {
-        // Arrastou pra direita -> Página anterior
         setCurrentPage(Math.max(1, currentPage - 1));
       }
     }
@@ -128,7 +122,6 @@ export const PdfViewer: React.FC = () => {
   };
 
   return (
-    // Adicionado os eventos onTouch (Start, Move, End) no container principal
     <div 
       className="p-4 min-h-full h-full overflow-auto scroll-smooth text-center"
       onTouchStart={onTouchStart}

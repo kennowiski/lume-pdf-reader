@@ -3,13 +3,13 @@ import { PdfViewer } from './components/PdfViewer';
 import { Sidebar } from './components/Sidebar';
 import { PdfTools } from './components/PdfTools';
 import { usePdfStore } from './store/usePdfStore';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Moon, Sun, BookOpen, ScrollText, Book, AlignLeft, ArrowLeft, Monitor, Upload } from 'lucide-react';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Moon, Sun, BookOpen, ScrollText, Book, AlignLeft, ArrowLeft, Monitor } from 'lucide-react';
 
 const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { 
     setFile, currentPage, numPages, setCurrentPage, 
-    scale, setScale, rotation, setRotation, file,
+    scale, setScale, rotation, setRotation,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
@@ -49,7 +49,6 @@ const App: React.FC = () => {
     return <PdfTools />;
   }
 
-  // TELA INICIAL COM AS CORES ORIGINAIS E SELETOR DE TEMA
   if (screen === 'home') {
     return (
       <div className={`flex flex-col items-center justify-center min-h-screen p-4 transition-colors duration-300 ${themeClasses[activeTheme]}`}>
@@ -78,7 +77,6 @@ const App: React.FC = () => {
           Ferramentas de PDF
         </button>
 
-        {/* SELETOR DE TEMA NA TELA INICIAL */}
         <div className="mt-16 flex flex-col items-center gap-3">
           <span className={`text-xs font-bold uppercase tracking-wider ${activeTheme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>Aparência</span>
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-xl shadow-sm ${activeTheme === 'dark' ? 'bg-gray-800 border border-gray-700' : activeTheme === 'sepia' ? 'bg-[#e9deb5] border border-[#d4c391]' : 'bg-white border border-gray-200'}`}>
@@ -92,7 +90,6 @@ const App: React.FC = () => {
     );
   }
 
-  // TELA DO LEITOR (Mantida Inalterada)
   return (
     <div className={`flex flex-col h-screen w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex flex-col md:flex-row gap-4 items-center justify-between p-3 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>

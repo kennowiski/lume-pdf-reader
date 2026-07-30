@@ -15,7 +15,6 @@ export const PdfTools: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lógica para aplicar o tema dinâmico igual ao App.tsx
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -60,7 +59,7 @@ export const PdfTools: React.FC = () => {
       if (activeTool === 'merge') {
         const mergedPdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
-          const pdfBytes = await files[i].arrayBuffer();
+          const pdfBytes = new Uint8Array(await files[i].arrayBuffer());
           const pdf = await PDFDocument.load(pdfBytes);
           const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
           copiedPages.forEach((page) => mergedPdf.addPage(page));
@@ -70,7 +69,7 @@ export const PdfTools: React.FC = () => {
       } 
       
       else if (activeTool === 'split') {
-        const pdfBytes = await files[0].arrayBuffer();
+        const pdfBytes = new Uint8Array(await files[0].arrayBuffer());
         const pdf = await PDFDocument.load(pdfBytes);
         const totalPages = pdf.getPageCount();
         
@@ -94,7 +93,7 @@ export const PdfTools: React.FC = () => {
         const pdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          const bytes = await file.arrayBuffer();
+          const bytes = new Uint8Array(await file.arrayBuffer());
           let image;
           if (file.type === 'image/jpeg') image = await pdf.embedJpg(bytes);
           else if (file.type === 'image/png') image = await pdf.embedPng(bytes);
