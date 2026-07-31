@@ -21,14 +21,12 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
-  // NOVO: Radar inteligente que sabe qual página está no meio da tela no modo Scroll
   useEffect(() => {
     if (viewMode !== 'scroll' || !numPages) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // Se a página cruzar a linha imaginária do centro da tela...
           if (entry.isIntersecting) {
             const pageNum = Number(entry.target.getAttribute('data-page-number'));
             if (pageNum) {
@@ -39,13 +37,11 @@ export const PdfViewer: React.FC = () => {
       },
       {
         root: containerRef.current,
-        // Cria uma linha fininha bem no centro exato da tela para fazer a leitura
         rootMargin: '-50% 0px -49% 0px', 
         threshold: 0
       }
     );
 
-    // Dá um tempinho para o React desenhar as páginas antes de ligar o radar
     const timeout = setTimeout(() => {
       const pageNodes = document.querySelectorAll('.pdf-page-container');
       pageNodes.forEach((node) => observer.observe(node));
@@ -57,10 +53,11 @@ export const PdfViewer: React.FC = () => {
     };
   }, [viewMode, numPages, setCurrentPage, scale]); 
 
+  // CORREÇÃO: Suporte a Ctrl+Scroll (Zoom no trackpad do notebook) e Alt+Scroll
   useEffect(() => {
     const viewer = containerRef.current;
     const handleWheel = (e: WheelEvent) => {
-      if (e.altKey) {
+      if (e.altKey || e.ctrlKey) {
         e.preventDefault(); 
         const zoomAmount = e.deltaY < 0 ? 0.1 : -0.1;
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
@@ -173,6 +170,7 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
+  // CORREÇÃO: Matemática refinada para zoom ultra-suave no celular
   const onTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchDistance !== null) {
       const dist = Math.hypot(
@@ -181,8 +179,8 @@ export const PdfViewer: React.FC = () => {
       );
       const diff = dist - pinchDistance;
       
-      if (Math.abs(diff) > 15) { 
-        const zoomAmount = diff > 0 ? 0.05 : -0.05;
+      if (Math.abs(diff) > 2) { 
+        const zoomAmount = diff * 0.004; // Multiplicador suave (estilo app nativo)
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
         setPinchDistance(dist); 
       }
@@ -228,76 +226,80 @@ export const PdfViewer: React.FC = () => {
     >
       {loading && <div className="text-blue-500 font-bold mb-4">Carregando documento...</div>}
       
-      <Document
-        file={file}
-        onLoadSuccess={onDocumentLoadSuccess}
-        onLoadStart={() => setLoading(true)}
-        className={`transition-all duration-300 ease-in-out inline-flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
-        error={<div className="text-red-500 font-bold p-4 bg-red-50 rounded shadow text-center">Erro ao carregar o PDF.</div>}
-      >
-        
-        {viewMode === 'scroll' && Array.from(new Array(numPages || 0), (_, index) => (
-          <div 
-            key={`page-${index + 1}`} 
-            id={`pdf-page-${index + 1}`} 
-            data-page-number={index + 1} /* Atributo pro radar conseguir ler o número da página */
-            className="pdf-page-container shadow-xl bg-white relative inline-block mx-auto max-w-full"
-          >
-            <Page 
-              pageNumber={index + 1} 
-              scale={scale} 
-              rotate={rotation}
-              width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-            />
-          </div>
-        ))}
-
-        {viewMode === 'book' && (
-          <div className={`relative ${!isTextMode ? 'shadow-2xl bg-white mx-auto' : 'w-full'} inline-block max-w-full ${isAnimating ? 'animate-page-turn' : ''}`}>
-            
-            <div className={isTextMode ? 'opacity-0 h-0 w-0 overflow-hidden absolute pointer-events-none' : ''}>
+      {/* A MÁGICA FINAL: style={{ zoom: scale }} aplica o zoom nativo do navegador! */}
+      <div style={{ zoom: scale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+        <Document
+          file={file}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadStart={() => setLoading(true)}
+          className={`transition-all duration-300 ease-in-out inline-flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
+          error={<div className="text-red-500 font-bold p-4 bg-red-50 rounded shadow text-center">Erro ao carregar o PDF.</div>}
+        >
+          
+          {viewMode === 'scroll' && Array.from(new Array(numPages || 0), (_, index) => (
+            <div 
+              key={`page-${index + 1}`} 
+              id={`pdf-page-${index + 1}`} 
+              data-page-number={index + 1} 
+              className="pdf-page-container shadow-xl bg-white relative inline-block mx-auto max-w-full"
+            >
               <Page 
-                pageNumber={currentPage} 
-                scale={scale} 
+                pageNumber={index + 1} 
+                // CORREÇÃO: Tiramos o 'scale' dinâmico daqui. A biblioteca renderiza 1x só, 
+                // e a tag <div> acima faz o zoom visual perfeito.
+                scale={1.0} 
                 rotate={rotation}
                 width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
               />
             </div>
+          ))}
 
-            {isTextMode && (
-              <div 
-                className={`w-full max-w-3xl mx-auto p-6 md:p-12 text-left leading-relaxed whitespace-pre-wrap transition-all duration-200 ${activeTheme === 'dark' ? 'text-gray-200' : activeTheme === 'sepia' ? 'text-[#5b4636]' : 'text-gray-800'}`}
-                style={{ fontSize: `${scale}rem` }}
-              >
-                {isExtracting ? (
-                  <p className="text-center opacity-50 animate-pulse font-bold mt-10">Lendo texto da página...</p>
-                ) : (
-                  extractedText
-                )}
+          {viewMode === 'book' && (
+            <div className={`relative ${!isTextMode ? 'shadow-2xl bg-white mx-auto' : 'w-full'} inline-block max-w-full ${isAnimating ? 'animate-page-turn' : ''}`}>
+              
+              <div className={isTextMode ? 'opacity-0 h-0 w-0 overflow-hidden absolute pointer-events-none' : ''}>
+                <Page 
+                  pageNumber={currentPage} 
+                  scale={1.0} 
+                  rotate={rotation}
+                  width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                />
               </div>
-            )}
-            
-            {!isTextMode && (
-              <>
+
+              {isTextMode && (
                 <div 
-                  className="absolute top-0 left-0 w-1/4 h-full cursor-pointer z-10" 
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  title="Página Anterior"
-                />
-                <div 
-                  className="absolute top-0 right-0 w-1/4 h-full cursor-pointer z-10" 
-                  onClick={() => setCurrentPage(Math.min(numPages || 1, currentPage + 1))}
-                  title="Próxima Página"
-                />
-              </>
-            )}
-          </div>
-        )}
-      </Document>
+                  className={`w-full max-w-3xl mx-auto p-6 md:p-12 text-left leading-relaxed whitespace-pre-wrap transition-all duration-200 ${activeTheme === 'dark' ? 'text-gray-200' : activeTheme === 'sepia' ? 'text-[#5b4636]' : 'text-gray-800'}`}
+                >
+                  {isExtracting ? (
+                    <p className="text-center opacity-50 animate-pulse font-bold mt-10">Lendo texto da página...</p>
+                  ) : (
+                    extractedText
+                  )}
+                </div>
+              )}
+              
+              {!isTextMode && (
+                <>
+                  <div 
+                    className="absolute top-0 left-0 w-1/4 h-full cursor-pointer z-10" 
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    title="Página Anterior"
+                  />
+                  <div 
+                    className="absolute top-0 right-0 w-1/4 h-full cursor-pointer z-10" 
+                    onClick={() => setCurrentPage(Math.min(numPages || 1, currentPage + 1))}
+                    title="Próxima Página"
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </Document>
+      </div>
     </div>
   );
 };
