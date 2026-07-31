@@ -21,6 +21,21 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
+  // A MÁGICA ACONTECE AQUI: Criamos um "renderScale" atrasado.
+  const [renderScale, setRenderScale] = useState(scale);
+
+  useEffect(() => {
+    // Quando o usuário parar de dar zoom por 350 milissegundos, a gente atualiza a imagem real pra ficar nítida
+    const timer = setTimeout(() => {
+      setRenderScale(scale);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [scale]);
+
+  // A diferença entre o que o usuário quer (scale) e o que está renderizado (renderScale)
+  // Isso gera um zoom CSS provisório ultra-suave.
+  const visualScale = scale / renderScale;
+
   useEffect(() => {
     if (viewMode !== 'scroll' || !numPages) return;
 
@@ -53,7 +68,6 @@ export const PdfViewer: React.FC = () => {
     };
   }, [viewMode, numPages, setCurrentPage, scale]); 
 
-  // CORREÇÃO: Suporte a Ctrl+Scroll (Zoom no trackpad do notebook) e Alt+Scroll
   useEffect(() => {
     const viewer = containerRef.current;
     const handleWheel = (e: WheelEvent) => {
@@ -170,7 +184,6 @@ export const PdfViewer: React.FC = () => {
     }
   };
 
-  // CORREÇÃO: Matemática refinada para zoom ultra-suave no celular
   const onTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchDistance !== null) {
       const dist = Math.hypot(
@@ -180,7 +193,7 @@ export const PdfViewer: React.FC = () => {
       const diff = dist - pinchDistance;
       
       if (Math.abs(diff) > 2) { 
-        const zoomAmount = diff * 0.004; // Multiplicador suave (estilo app nativo)
+        const zoomAmount = diff * 0.005;
         setScale(Math.max(0.4, Math.min(4.0, scale + zoomAmount)));
         setPinchDistance(dist); 
       }
@@ -226,8 +239,8 @@ export const PdfViewer: React.FC = () => {
     >
       {loading && <div className="text-blue-500 font-bold mb-4">Carregando documento...</div>}
       
-      {/* A MÁGICA FINAL: style={{ zoom: scale }} aplica o zoom nativo do navegador! */}
-      <div style={{ zoom: scale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      {/* Aqui aplicamos o zoom visual temporário e ultra-rápido */}
+      <div style={{ zoom: visualScale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         <Document
           file={file}
           onLoadSuccess={onDocumentLoadSuccess}
@@ -245,9 +258,8 @@ export const PdfViewer: React.FC = () => {
             >
               <Page 
                 pageNumber={index + 1} 
-                // CORREÇÃO: Tiramos o 'scale' dinâmico daqui. A biblioteca renderiza 1x só, 
-                // e a tag <div> acima faz o zoom visual perfeito.
-                scale={1.0} 
+                // Renderizamos com o "renderScale" (que atualiza em alta definição só quando você solta o zoom)
+                scale={renderScale} 
                 rotate={rotation}
                 width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
                 renderTextLayer={true}
@@ -262,7 +274,7 @@ export const PdfViewer: React.FC = () => {
               <div className={isTextMode ? 'opacity-0 h-0 w-0 overflow-hidden absolute pointer-events-none' : ''}>
                 <Page 
                   pageNumber={currentPage} 
-                  scale={1.0} 
+                  scale={renderScale} 
                   rotate={rotation}
                   width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
                   renderTextLayer={true}
