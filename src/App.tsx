@@ -123,7 +123,7 @@ const App: React.FC = () => {
     <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex flex-col md:flex-row gap-2 items-center justify-between p-2 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
         
-        {/* CORREÇÃO AQUI: md:justify-start e md:gap-2 e md:static corrigem a posição no computador */}
+        {/* No desktop, alinha à esquerda e mantém espaçamento e posição fixa */}
         <div className="relative flex items-center justify-center md:justify-start w-full md:w-auto min-h-[32px] md:gap-2">
           <button 
             onClick={() => setFile(null)} 

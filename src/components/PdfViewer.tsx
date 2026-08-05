@@ -21,7 +21,7 @@ export const PdfViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
-  // A MÁGICA ACONTECE AQUI: Criamos um "renderScale" atrasado.
+  // Aqui está o pulo do gato: um "renderScale" atrasado.
   const [renderScale, setRenderScale] = useState(scale);
 
   useEffect(() => {
@@ -239,7 +239,7 @@ export const PdfViewer: React.FC = () => {
     >
       {loading && <div className="text-blue-500 font-bold mb-4">Carregando documento...</div>}
       
-      {/* Aqui aplicamos o zoom visual temporário e ultra-rápido */}
+      {/* Zoom visual temporário e ultra-rápido, aplicado aqui */}
       <div style={{ zoom: visualScale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         <Document
           file={file}
@@ -258,7 +258,7 @@ export const PdfViewer: React.FC = () => {
             >
               <Page 
                 pageNumber={index + 1} 
-                // Renderizamos com o "renderScale" (que atualiza em alta definição só quando você solta o zoom)
+                // Renderiza com o "renderScale" (que atualiza em alta definição só quando você solta o zoom)
                 scale={renderScale} 
                 rotate={rotation}
                 width={containerWidth && containerWidth < 768 ? containerWidth : undefined}
