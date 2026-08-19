@@ -29,8 +29,7 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({ activeTheme }) => {
     setFile(file, { id: record.id, name: record.name, startPage: record.lastPage || 1 });
   };
 
-  const handleRemove = async (e: React.MouseEvent, record: StoredFileRecord) => {
-    e.stopPropagation();
+  const handleRemove = async (record: StoredFileRecord) => {
     await deleteFileRecord(record.id);
     setRecent((prev) => prev.filter((r) => r.id !== record.id));
   };
@@ -42,27 +41,38 @@ export const RecentFiles: React.FC<RecentFilesProps> = ({ activeTheme }) => {
       </span>
       <div className="flex flex-col gap-2">
         {recent.map((record) => (
-          <button
+          <div
             key={record.id}
-            onClick={() => handleOpen(record)}
-            className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${cardClasses[activeTheme]}`}
+            className={`flex items-center gap-1 p-1.5 rounded-xl border transition-colors ${cardClasses[activeTheme]}`}
           >
-            <FileText size={20} className="shrink-0 text-blue-500" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{record.name}</p>
-              <p className="text-xs opacity-60">
-                Página {record.lastPage}{record.numPages ? ` de ${record.numPages}` : ''}
-              </p>
-            </div>
-            <span
-              role="button"
-              onClick={(e) => handleRemove(e, record)}
+            {/*
+              Dois <button> irmãos em vez de um "botão de remover" aninhado dentro
+              do card inteiro: HTML/ARIA não suporta elemento interativo dentro de
+              outro, e o aninhamento anterior também deixava o "X" inacessível via
+              teclado (sem tabIndex/onKeyDown). Como botões irmãos, os dois já
+              recebem foco e ativação por teclado (Tab + Enter/Espaço) de graça.
+            */}
+            <button
+              onClick={() => handleOpen(record)}
+              className="flex items-center gap-3 flex-1 min-w-0 text-left p-1.5 rounded-lg hover:bg-black/5"
+            >
+              <FileText size={20} className="shrink-0 text-blue-500" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{record.name}</p>
+                <p className="text-xs opacity-60">
+                  Página {record.lastPage}{record.numPages ? ` de ${record.numPages}` : ''}
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={() => handleRemove(record)}
               className="p-1.5 rounded-full hover:bg-black/10 opacity-60 shrink-0"
               title="Remover dos recentes"
+              aria-label={`Remover ${record.name} dos recentes`}
             >
               <X size={14} />
-            </span>
-          </button>
+            </button>
+          </div>
         ))}
       </div>
     </div>

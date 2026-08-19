@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface JumpToPageModalProps {
@@ -11,6 +11,14 @@ interface JumpToPageModalProps {
 
 export const JumpToPageModal: React.FC<JumpToPageModalProps> = ({ currentPage, numPages, activeTheme, onClose, onJump }) => {
   const [value, setValue] = useState(String(currentPage));
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const panelClasses = {
     light: 'bg-white text-gray-800',

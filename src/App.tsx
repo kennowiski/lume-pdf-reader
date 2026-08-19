@@ -1,5 +1,4 @@
 import React, { useRef, useState, Suspense, lazy } from 'react';
-import { PdfViewer } from './components/PdfViewer';
 import { Sidebar } from './components/Sidebar';
 import { JumpToPageModal } from './components/JumpToPageModal';
 import { RecentFiles } from './components/RecentFiles';
@@ -12,6 +11,11 @@ import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Moon, Sun, BookOp
 // por uma parte dos usuários — carregá-las sob demanda evita incluir esse peso
 // no bundle inicial de quem só quer ler um PDF.
 const PdfTools = lazy(() => import('./components/PdfTools'));
+
+// O PdfViewer arrasta o react-pdf/pdfjs inteiro (~124 KB gzip). Ele só é
+// necessário depois que o usuário já escolheu um arquivo, então também é
+// carregado sob demanda em vez de entrar no bundle inicial da tela "home".
+const PdfViewer = lazy(() => import('./components/PdfViewer').then((m) => ({ default: m.PdfViewer })));
 
 const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,7 +198,13 @@ const App: React.FC = () => {
       <main className="flex-1 flex overflow-hidden relative">
         {viewMode === 'scroll' && <Sidebar />}
         <div className={`flex-1 overflow-hidden relative ${activeTheme === 'dark' ? 'bg-gray-900' : activeTheme === 'sepia' ? 'bg-[#f4ecd8]' : 'bg-gray-200/50'}`}>
-          <PdfViewer />
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+              <Loader2 size={32} className="animate-spin text-blue-500" />
+            </div>
+          }>
+            <PdfViewer />
+          </Suspense>
         </div>
       </main>
 

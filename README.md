@@ -1,75 +1,58 @@
-# React + TypeScript + Vite
+# Lume — Leitor de PDF
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Leitor de PDF simples, rápido e offline, direto no navegador. Sem contas, sem anúncios — tudo roda no seu aparelho.
 
-Currently, two official plugins are available:
+**App publicado:** https://lume-pdf-reader-iota.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Funcionalidades
 
-## React Compiler
+- Leitura em modo Scroll (contínuo) ou Livro (página a página, com gestos de swipe)
+- Modo "Ler Texto": extrai e exibe o texto da página, com busca dentro da página
+- Zoom (pinça no touch, `Alt/Ctrl` + scroll no desktop) e rotação
+- Temas Claro, Escuro, Sépia e Automático (segue o sistema), com persistência entre sessões
+- Lista de "Continuar lendo": os PDFs abertos ficam salvos localmente (IndexedDB), com a página onde você parou
+- Ferramentas de PDF: mesclar arquivos, dividir/extrair páginas, e converter imagens (JPG/PNG) em PDF — tudo offline, local no navegador
+- Instalável como PWA (ícone, splash e tela cheia no celular)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Rodando localmente
 
-## Expanding the ESLint configuration
+Pré-requisitos: Node.js 18+ e npm.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Abre em `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Outros comandos úteis:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build    # build de produção (tsc + vite build) em dist/
+npm run preview  # serve o build de produção localmente
+npm run lint     # roda o eslint
+npm run test     # roda os testes (vitest)
+```
+
+## Estrutura do projeto
 
 ```
+src/
+  components/
+    PdfViewer.tsx        # renderização do PDF (scroll/livro, zoom, extração de texto, busca)
+    Sidebar.tsx           # miniaturas de página (Document único do react-pdf, ver comentário no arquivo)
+    PdfTools.tsx           # mesclar / dividir / imagem→PDF (pdf-lib), carregado sob demanda
+    JumpToPageModal.tsx    # modal de "ir para página"
+    RecentFiles.tsx        # lista de "Continuar lendo" na tela inicial
+    ErrorBoundary.tsx      # error boundary global do app
+  hooks/
+    useActiveTheme.ts      # resolve o tema "Automático" para claro/escuro
+  lib/
+    fileStorage.ts         # persistência dos PDFs recentes em IndexedDB
+  store/
+    usePdfStore.ts         # estado global (zustand), com persistência de tema/modo de visualização
+```
+
+## Stack
+
+React 19 + TypeScript + Vite, Tailwind CSS v4, zustand, react-pdf (pdf.js), pdf-lib, lucide-react.

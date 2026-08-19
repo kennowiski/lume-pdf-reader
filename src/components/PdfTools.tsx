@@ -118,7 +118,7 @@ export const PdfTools: React.FC = () => {
   return (
     <div className={`flex flex-col min-h-screen transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex items-center gap-4 p-4 md:p-6 shadow-sm z-10 border-b ${headerClasses[activeTheme]}`}>
-        <button onClick={() => setScreen('home')} className={`p-2 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}>
+        <button onClick={() => setScreen('home')} title="Voltar ao Início" className={`p-2 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}>
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-xl font-bold">Ferramentas de PDF</h1>
