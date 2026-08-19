@@ -1,36 +1,48 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useState, Suspense, lazy } from 'react';
 import { PdfViewer } from './components/PdfViewer';
 import { Sidebar } from './components/Sidebar';
-import { PdfTools } from './components/PdfTools';
+import { JumpToPageModal } from './components/JumpToPageModal';
+import { RecentFiles } from './components/RecentFiles';
 import { usePdfStore } from './store/usePdfStore';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Moon, Sun, BookOpen, ScrollText, Book, AlignLeft, ArrowLeft, Monitor } from 'lucide-react';
+import { useActiveTheme } from './hooks/useActiveTheme';
+import { saveFileRecord, makeFileId } from './lib/fileStorage';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RotateCw, Moon, Sun, BookOpen, ScrollText, Book, AlignLeft, ArrowLeft, Monitor, Loader2 } from 'lucide-react';
+
+// As Ferramentas de PDF dependem da pdf-lib (biblioteca pesada) e só são usadas
+// por uma parte dos usuários — carregá-las sob demanda evita incluir esse peso
+// no bundle inicial de quem só quer ler um PDF.
+const PdfTools = lazy(() => import('./components/PdfTools'));
 
 const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { 
-    setFile, currentPage, numPages, setCurrentPage, 
+  const {
+    setFile, currentPage, numPages, setCurrentPage,
     scale, setScale, rotation, setRotation,
     theme, setTheme, viewMode, setViewMode,
     isTextMode, setIsTextMode, screen, setScreen
   } = usePdfStore();
 
-  const [systemPrefersDark, setSystemPrefersDark] = useState(
-    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
+  const activeTheme = useActiveTheme();
+  const [jumpModalOpen, setJumpModalOpen] = useState(false);
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
 
-  const activeTheme = theme === 'system' ? (systemPrefersDark ? 'dark' : 'light') : theme;
+    const id = makeFileId(selected.name, selected.size);
+    setFile(selected, { id, name: selected.name });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
+    // Guarda os bytes em IndexedDB para a lista de "Continuar lendo" e para
+    // permitir retomar a leitura na página certa numa próxima sessão.
+    const bytes = await selected.arrayBuffer();
+    saveFileRecord({
+      id,
+      name: selected.name,
+      bytes,
+      lastPage: 1,
+      numPages: null,
+      updatedAt: Date.now(),
+    });
   };
 
   const handlePrevPage = () => {
@@ -49,16 +61,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleJumpToPage = () => {
-    const page = prompt(`Ir para página (1 a ${numPages}):`, currentPage.toString());
-    if (page) {
-      const pageNum = parseInt(page);
-      if (pageNum >= 1 && pageNum <= (numPages || 1)) {
-        setCurrentPage(pageNum);
-        if (viewMode === 'scroll') {
-          document.getElementById(`pdf-page-${pageNum}`)?.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
+  const handleJumpToPage = (page: number) => {
+    setCurrentPage(page);
+    if (viewMode === 'scroll') {
+      document.getElementById(`pdf-page-${page}`)?.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -75,32 +81,40 @@ const App: React.FC = () => {
   };
 
   if (screen === 'tools') {
-    return <PdfTools />;
+    return (
+      <Suspense fallback={
+        <div className={`flex items-center justify-center min-h-screen ${themeClasses[activeTheme]}`}>
+          <Loader2 size={32} className="animate-spin text-blue-500" />
+        </div>
+      }>
+        <PdfTools />
+      </Suspense>
+    );
   }
 
   if (screen === 'home') {
     return (
       <div className={`flex flex-col items-center justify-center min-h-screen p-4 transition-colors duration-300 ${themeClasses[activeTheme]}`}>
         <input type="file" accept="application/pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-        
+
         <div className={`w-16 h-16 rounded-full border-[3px] border-t-transparent border-r-transparent rotate-45 mb-6 opacity-90 ${activeTheme === 'dark' ? 'border-blue-400' : activeTheme === 'sepia' ? 'border-amber-700' : 'border-blue-600'}`}></div>
-        
+
         <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Lume</h1>
-        
+
         <p className={`text-center max-w-sm mb-10 leading-relaxed ${activeTheme === 'dark' ? 'text-gray-400' : activeTheme === 'sepia' ? 'text-[#7a6452]' : 'text-gray-500'}`}>
           Escolha um PDF do seu celular para começar a ler.<br/>
           Tudo fica salvo neste app — sem contas, sem anúncios.
         </p>
-        
-        <button 
-          onClick={() => fileInputRef.current?.click()} 
+
+        <button
+          onClick={() => fileInputRef.current?.click()}
           className="bg-blue-600 text-white px-10 py-3.5 rounded-full mb-4 font-medium text-lg hover:bg-blue-700 transition-colors shadow-md w-full max-w-xs flex justify-center items-center gap-2"
         >
            Abrir PDF
         </button>
-        
-        <button 
-          onClick={() => setScreen('tools')} 
+
+        <button
+          onClick={() => setScreen('tools')}
           className={`border px-10 py-3.5 rounded-full font-medium transition-colors w-full max-w-xs ${activeTheme === 'dark' ? 'border-gray-600 hover:bg-gray-800 text-gray-300' : activeTheme === 'sepia' ? 'border-[#d4c391] hover:bg-[#e9deb5] text-[#5b4636]' : 'border-gray-300 hover:bg-gray-200 text-gray-700'}`}
         >
           Ferramentas de PDF
@@ -115,6 +129,8 @@ const App: React.FC = () => {
             <button onClick={() => setTheme('dark')} className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-gray-700 shadow text-blue-400' : 'hover:bg-black/5 text-gray-500'}`} title="Modo Escuro"><Moon size={20} /></button>
           </div>
         </div>
+
+        <RecentFiles activeTheme={activeTheme} />
       </div>
     );
   }
@@ -122,11 +138,11 @@ const App: React.FC = () => {
   return (
     <div className={`flex flex-col h-[100dvh] w-full overflow-hidden transition-colors duration-300 ${themeClasses[activeTheme]}`}>
       <header className={`flex flex-col md:flex-row gap-2 items-center justify-between p-2 shadow-sm z-20 border-b ${headerClasses[activeTheme]}`}>
-        
+
         {/* No desktop, alinha à esquerda e mantém espaçamento e posição fixa */}
         <div className="relative flex items-center justify-center md:justify-start w-full md:w-auto min-h-[32px] md:gap-2">
-          <button 
-            onClick={() => setFile(null)} 
+          <button
+            onClick={() => setFile(null)}
             className={`absolute left-0 md:static p-1.5 rounded-lg transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             title="Voltar ao Início"
           >
@@ -134,9 +150,9 @@ const App: React.FC = () => {
           </button>
           <h1 className="text-xl font-black text-blue-600 dark:text-blue-400">Lume</h1>
         </div>
-        
+
         <div className="flex w-full md:w-auto items-center justify-start md:justify-center gap-1.5 overflow-x-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          
+
           <div className={`flex shrink-0 items-center space-x-1 p-1 rounded-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-black/5'}`}>
             <button onClick={() => setViewMode('scroll')} className={`p-1.5 rounded flex items-center gap-1 ${viewMode === 'scroll' ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}>
               <ScrollText size={18} /> <span className="text-xs font-bold hidden sm:block">Scroll</span>
@@ -145,8 +161,8 @@ const App: React.FC = () => {
               <Book size={18} /> <span className="text-xs font-bold hidden sm:block">Livro</span>
             </button>
             <div className={`w-px h-5 mx-1 ${activeTheme === 'dark' ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-            <button 
-              onClick={() => setIsTextMode(!isTextMode)} 
+            <button
+              onClick={() => setIsTextMode(!isTextMode)}
               disabled={viewMode !== 'book'}
               className={`p-1.5 rounded flex items-center gap-1 ${viewMode !== 'book' ? 'opacity-30 cursor-not-allowed' : isTextMode ? (activeTheme === 'dark' ? 'bg-gray-600 shadow text-white' : 'bg-white shadow text-gray-900') : 'hover:bg-white/50'}`}
             >
@@ -184,17 +200,27 @@ const App: React.FC = () => {
 
       <footer className={`flex items-center justify-center gap-6 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 pb-safe ${headerClasses[activeTheme]} ${viewMode === 'scroll' ? 'md:hidden justify-between' : 'justify-center'}`}>
         <button onClick={handlePrevPage} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronLeft size={24} /></button>
-        
-        <span 
-          onClick={handleJumpToPage} 
+
+        <span
+          onClick={() => setJumpModalOpen(true)}
           className={`text-sm font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors ${activeTheme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-black/5'}`}
           title="Ir para página"
         >
           Página {currentPage} de {numPages || '-'}
         </span>
-        
+
         <button onClick={handleNextPage} className="p-2 rounded-lg hover:bg-black/5 transition-colors"><ChevronRight size={24} /></button>
       </footer>
+
+      {jumpModalOpen && (
+        <JumpToPageModal
+          currentPage={currentPage}
+          numPages={numPages || 1}
+          activeTheme={activeTheme}
+          onClose={() => setJumpModalOpen(false)}
+          onJump={handleJumpToPage}
+        />
+      )}
     </div>
   );
 };

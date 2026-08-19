@@ -1,16 +1,13 @@
 import React from 'react';
 import { Document, Page } from 'react-pdf';
 import { usePdfStore } from '../store/usePdfStore';
+import { useActiveTheme } from '../hooks/useActiveTheme';
 
 export const Sidebar: React.FC = () => {
-  const { file, numPages, currentPage, setCurrentPage, theme } = usePdfStore();
+  const { file, numPages, currentPage, setCurrentPage } = usePdfStore();
+  const activeTheme = useActiveTheme();
 
   if (!file || !numPages) return null;
-
-  // Calcula o tema real do sistema para a barra lateral
-  const activeTheme = theme === 'system' 
-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') 
-    : theme;
 
   const pdfFilters = {
     light: '',
@@ -35,29 +32,34 @@ export const Sidebar: React.FC = () => {
         <h2 className={`text-xs uppercase tracking-wider font-bold mb-4 ${activeTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
           Páginas ({numPages})
         </h2>
-        <div className="flex flex-col gap-6 items-center">
+        {/*
+          Um único <Document> compartilhado por todas as miniaturas: o PDF é
+          carregado/parseado uma única vez e cada <Page> apenas renderiza a
+          página correspondente a partir dele, em vez de cada miniatura
+          reabrir o arquivo inteiro (o comportamento antigo custava N parses
+          completos do PDF para um documento de N páginas).
+        */}
+        <Document file={file} loading={null} error={null} className={`flex flex-col gap-6 items-center ${pdfFilters[activeTheme]}`}>
           {Array.from(new Array(numPages), (_, index) => (
-            <div 
+            <div
               key={`thumb-${index + 1}`}
               onClick={() => handleThumbnailClick(index + 1)}
               className={`cursor-pointer transition-all p-1 bg-white ${
-                currentPage === index + 1 
-                  ? 'ring-2 ring-blue-500 shadow-md' 
+                currentPage === index + 1
+                  ? 'ring-2 ring-blue-500 shadow-md'
                   : 'ring-1 ring-gray-200 hover:ring-blue-300'
               }`}
             >
-              <Document file={file} className={pdfFilters[activeTheme]}>
-                <Page 
-                  pageNumber={index + 1} 
-                  width={150} 
-                  renderTextLayer={false} 
-                  renderAnnotationLayer={false} 
-                />
-              </Document>
+              <Page
+                pageNumber={index + 1}
+                width={150}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+              />
               <p className="text-center text-xs font-medium text-gray-500 mt-2">{index + 1}</p>
             </div>
           ))}
-        </div>
+        </Document>
       </div>
     </aside>
   );

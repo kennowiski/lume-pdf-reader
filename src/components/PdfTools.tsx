@@ -1,33 +1,21 @@
-// @ts-nocheck
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { usePdfStore } from '../store/usePdfStore';
+import { useActiveTheme } from '../hooks/useActiveTheme';
 import { PDFDocument } from 'pdf-lib';
 
 type Tool = 'merge' | 'split' | 'image';
 
 export const PdfTools: React.FC = () => {
-  const { setScreen, theme } = usePdfStore();
+  const { setScreen } = usePdfStore();
+  const activeTheme = useActiveTheme();
   const [activeTool, setActiveTool] = useState<Tool>('merge');
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const [splitStart, setSplitStart] = useState('1');
   const [splitEnd, setSplitEnd] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [systemPrefersDark, setSystemPrefersDark] = useState(
-    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-
-  const activeTheme = theme === 'system' ? (systemPrefersDark ? 'dark' : 'light') : theme;
 
   const themeClasses = {
     light: 'bg-gray-100 text-gray-800',
@@ -42,7 +30,7 @@ export const PdfTools: React.FC = () => {
   };
 
   const downloadBlob = (bytes: Uint8Array, filename: string) => {
-    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -67,29 +55,33 @@ export const PdfTools: React.FC = () => {
         }
         const savedBytes = await mergedPdf.save();
         downloadBlob(savedBytes, 'Lume_Mesclado.pdf');
-      } 
-      
+      }
+
       else if (activeTool === 'split') {
         const pdfBytes = await files[0].arrayBuffer();
         const pdf = await PDFDocument.load(pdfBytes);
         const totalPages = pdf.getPageCount();
-        
-        let start = parseInt(splitStart) - 1;
-        let end = splitEnd ? parseInt(splitEnd) - 1 : totalPages - 1;
-        
-        if (start < 0) start = 0;
-        if (end >= totalPages) end = totalPages - 1;
-        if (start > end) { alert("Intervalo inválido"); setIsProcessing(false); return; }
+
+        let start = parseInt(splitStart, 10) - 1;
+        let end = splitEnd ? parseInt(splitEnd, 10) - 1 : totalPages - 1;
+
+        if (Number.isNaN(start) || start < 0) start = 0;
+        if (Number.isNaN(end) || end >= totalPages) end = totalPages - 1;
+        if (start > end) {
+          alert('Intervalo inválido');
+          setIsProcessing(false);
+          return;
+        }
 
         const indices = Array.from({ length: end - start + 1 }, (_, i) => start + i);
         const newPdf = await PDFDocument.create();
         const copiedPages = await newPdf.copyPages(pdf, indices);
         copiedPages.forEach((page) => newPdf.addPage(page));
-        
+
         const savedBytes = await newPdf.save();
-        downloadBlob(savedBytes, `Lume_Extraido_${start+1}-${end+1}.pdf`);
-      } 
-      
+        downloadBlob(savedBytes, `Lume_Extraido_${start + 1}-${end + 1}.pdf`);
+      }
+
       else if (activeTool === 'image') {
         const pdf = await PDFDocument.create();
         for (let i = 0; i < files.length; i++) {
@@ -107,7 +99,8 @@ export const PdfTools: React.FC = () => {
         downloadBlob(savedBytes, 'Lume_Imagens.pdf');
       }
     } catch (error) {
-      alert("Erro ao processar o arquivo. Verifique se ele não está protegido por senha.");
+      console.error('Erro ao processar arquivo em PdfTools:', error);
+      alert('Erro ao processar o arquivo. Verifique se ele não está protegido por senha.');
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -115,10 +108,10 @@ export const PdfTools: React.FC = () => {
   };
 
   const getToolDescription = () => {
-    switch(activeTool) {
-      case 'merge': return "Escolha 2 ou mais PDFs. Eles serão unidos na ordem selecionada. Tudo acontece offline no seu aparelho.";
-      case 'split': return "Selecione 1 arquivo PDF para extrair apenas as páginas desejadas para um novo arquivo.";
-      case 'image': return "Selecione imagens (JPG/PNG) para transformá-las em um único arquivo PDF.";
+    switch (activeTool) {
+      case 'merge': return 'Escolha 2 ou mais PDFs. Eles serão unidos na ordem selecionada. Tudo acontece offline no seu aparelho.';
+      case 'split': return 'Selecione 1 arquivo PDF para extrair apenas as páginas desejadas para um novo arquivo.';
+      case 'image': return 'Selecione imagens (JPG/PNG) para transformá-las em um único arquivo PDF.';
     }
   };
 
@@ -161,17 +154,17 @@ export const PdfTools: React.FC = () => {
           </div>
         )}
 
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileChange} 
-          className="hidden" 
-          multiple={activeTool !== 'split'} 
-          accept={activeTool === 'image' ? 'image/png, image/jpeg' : 'application/pdf'} 
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          multiple={activeTool !== 'split'}
+          accept={activeTool === 'image' ? 'image/png, image/jpeg' : 'application/pdf'}
         />
 
-        <button 
-          onClick={() => fileInputRef.current?.click()} 
+        <button
+          onClick={() => fileInputRef.current?.click()}
           disabled={isProcessing}
           className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 mt-4"
         >
@@ -181,3 +174,5 @@ export const PdfTools: React.FC = () => {
     </div>
   );
 };
+
+export default PdfTools;
