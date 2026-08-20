@@ -374,13 +374,34 @@ export const PdfViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Zoom visual temporário e ultra-rápido, aplicado aqui */}
-      <div style={{ zoom: visualScale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      {/*
+        Zoom visual temporário e ultra-rápido, aplicado aqui enquanto o
+        usuário ainda está ajustando o zoom (antes do "renderScale" real
+        chegar, 350ms depois). Usamos "transform: scale" em vez da
+        propriedade CSS "zoom": o "zoom" sempre cresce a partir do canto
+        superior-esquerdo do elemento, então num <div> de largura 100% ele
+        empurrava a página do PDF para a direita conforme a escala
+        aumentava. "transform" com transformOrigin no centro-topo escala a
+        partir do meio.
+
+        Esse <div> NÃO usa mais "display:flex + alignItems:center" para
+        centralizar o Document: quando a página com zoom fica mais larga que
+        a tela, um flex centralizado "vaza" metade do excesso para a
+        esquerda — só que essa parte fica inacessível (o navegador não
+        permite scroll negativo), fazendo a página parecer empurrada para a
+        direita. A centralização agora fica só por conta do "mx-auto" no
+        próprio <Document> logo abaixo: com margin:auto, quando o conteúdo é
+        mais largo que o container o navegador zera a margem em vez de ficar
+        negativa, então a página só passa a ficar alinhada à esquerda (com
+        scroll para a direita liberado) — o comportamento padrão de qualquer
+        leitor de PDF ao dar zoom além do que cabe na tela.
+      */}
+      <div style={{ transform: `scale(${visualScale})`, transformOrigin: 'top center' }}>
         <Document
           file={file}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadStart={() => setLoading(true)}
-          className={`transition-all duration-300 ease-in-out inline-flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
+          className={`transition-all duration-300 ease-in-out flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
           error={<div className="text-red-500 font-bold p-4 bg-red-50 rounded shadow text-center">Erro ao carregar o PDF.</div>}
         >
 
