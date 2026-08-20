@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Document, Page } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api.js';
@@ -53,21 +53,26 @@ export const PdfViewer: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scale]);
 
-  // Rede de segurança: sempre que o zoom terminar de ser aplicado (renderScale
-  // alcança o valor pedido) e o navegador tiver desenhado o novo layout,
-  // recentraliza explicitamente a página atual na tela. Isso substitui um
-  // cálculo manual de scrollTop/scrollLeft (frágil e sujeito a ficar
-  // dessincronizado do redesenho assíncrono do PDF.js) por uma reancoragem
-  // direta no elemento certo — é o que corrige tanto a "troca de página"
-  // quanto o desalinhamento para a lateral ao dar zoom.
-  useEffect(() => {
-    if (viewMode !== 'scroll') return;
-    const timer = setTimeout(() => {
-      const el = document.getElementById(`pdf-page-${currentPage}`);
-      el?.scrollIntoView({ block: 'center', inline: 'center' });
-    }, 50);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Quando "renderScale" muda, as páginas (e os placeholders, que usam a
+  // mesma escala) mudam de altura de verdade — e o navegador NÃO compensa a
+  // rolagem sozinho, então o ponto que você estava lendo "foge" pra cima ou
+  // pra baixo. Aqui recalculamos a rolagem na mesma proporção do redesenho,
+  // ANTES do navegador pintar (useLayoutEffect), para que a transição seja
+  // invisível — em vez de deixar o conteúdo pular e só depois tentar
+  // corrigir (o que causava um pulo visível extra).
+  const prevRenderScaleRef = useRef(renderScale);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const prevRenderScale = prevRenderScaleRef.current;
+    if (container && prevRenderScale !== renderScale) {
+      const ratio = renderScale / prevRenderScale;
+      const { scrollTop, scrollLeft, clientHeight, clientWidth } = container;
+      const centerY = scrollTop + clientHeight / 2;
+      const centerX = scrollLeft + clientWidth / 2;
+      container.scrollTop = centerY * ratio - clientHeight / 2;
+      container.scrollLeft = centerX * ratio - clientWidth / 2;
+    }
+    prevRenderScaleRef.current = renderScale;
   }, [renderScale]);
 
   useEffect(() => {
