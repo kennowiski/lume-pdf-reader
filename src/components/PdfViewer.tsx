@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Document, Page } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api.js';
@@ -56,6 +56,27 @@ export const PdfViewer: React.FC = () => {
   // Gera um zoom CSS provisório ultra-suave enquanto o "renderScale" não chega.
   const visualScale = scale / renderScale;
 
+  // O zoom CSS acima redimensiona o conteúdo, mas o navegador NÃO ajusta a
+  // rolagem sozinho — o scrollTop/scrollLeft continua no mesmo valor em
+  // pixels de antes, então o que estava centralizado na tela "foge" para
+  // fora da área visível (parecendo mudar de página ou empurrar o conteúdo
+  // para um dos lados). Aqui recalculamos a rolagem para manter o ponto
+  // central da tela fixo antes do navegador pintar o novo tamanho.
+  const prevScaleRef = useRef(scale);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const prevScale = prevScaleRef.current;
+    if (container && prevScale !== scale) {
+      const ratio = scale / prevScale;
+      const { scrollTop, scrollLeft, clientHeight, clientWidth } = container;
+      const centerY = scrollTop + clientHeight / 2;
+      const centerX = scrollLeft + clientWidth / 2;
+      container.scrollTop = centerY * ratio - clientHeight / 2;
+      container.scrollLeft = centerX * ratio - clientWidth / 2;
+    }
+    prevScaleRef.current = scale;
+  }, [scale]);
+
   useEffect(() => {
     if (viewMode !== 'scroll' || !numPages) return;
 
@@ -86,7 +107,10 @@ export const PdfViewer: React.FC = () => {
       clearTimeout(timeout);
       observer.disconnect();
     };
-  }, [viewMode, numPages, setCurrentPage, scale]);
+    // "scale" fica de fora de propósito: os nós observados não mudam com o
+    // zoom, então recriar o observer a cada zoom só reintroduzia o bug de
+    // detectar a página errada enquanto o layout ainda estava se ajustando.
+  }, [viewMode, numPages, setCurrentPage]);
 
   useEffect(() => {
     const viewer = containerRef.current;
@@ -374,34 +398,13 @@ export const PdfViewer: React.FC = () => {
         </div>
       )}
 
-      {/*
-        Zoom visual temporário e ultra-rápido, aplicado aqui enquanto o
-        usuário ainda está ajustando o zoom (antes do "renderScale" real
-        chegar, 350ms depois). Usamos "transform: scale" em vez da
-        propriedade CSS "zoom": o "zoom" sempre cresce a partir do canto
-        superior-esquerdo do elemento, então num <div> de largura 100% ele
-        empurrava a página do PDF para a direita conforme a escala
-        aumentava. "transform" com transformOrigin no centro-topo escala a
-        partir do meio.
-
-        Esse <div> NÃO usa mais "display:flex + alignItems:center" para
-        centralizar o Document: quando a página com zoom fica mais larga que
-        a tela, um flex centralizado "vaza" metade do excesso para a
-        esquerda — só que essa parte fica inacessível (o navegador não
-        permite scroll negativo), fazendo a página parecer empurrada para a
-        direita. A centralização agora fica só por conta do "mx-auto" no
-        próprio <Document> logo abaixo: com margin:auto, quando o conteúdo é
-        mais largo que o container o navegador zera a margem em vez de ficar
-        negativa, então a página só passa a ficar alinhada à esquerda (com
-        scroll para a direita liberado) — o comportamento padrão de qualquer
-        leitor de PDF ao dar zoom além do que cabe na tela.
-      */}
-      <div style={{ transform: `scale(${visualScale})`, transformOrigin: 'top center' }}>
+      {/* Zoom visual temporário e ultra-rápido, aplicado aqui */}
+      <div style={{ zoom: visualScale, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         <Document
           file={file}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadStart={() => setLoading(true)}
-          className={`transition-all duration-300 ease-in-out flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
+          className={`transition-all duration-300 ease-in-out inline-flex flex-col gap-6 text-left mx-auto ${isTextMode ? 'w-full' : 'w-max'} ${!isTextMode ? pdfFilters[activeTheme] : ''}`}
           error={<div className="text-red-500 font-bold p-4 bg-red-50 rounded shadow text-center">Erro ao carregar o PDF.</div>}
         >
 
