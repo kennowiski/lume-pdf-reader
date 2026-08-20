@@ -31,5 +31,14 @@ class MockIntersectionObserver {
 // @ts-expect-error - polyfill mínimo só para os testes
 window.IntersectionObserver = MockIntersectionObserver;
 
+// jsdom não implementa ResizeObserver — usado pelo PdfViewer para recentralizar
+// o PDF ao dar zoom.
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+window.ResizeObserver = MockResizeObserver;
+
 // jsdom não implementa scrollIntoView.
 Element.prototype.scrollIntoView = vi.fn();

@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { Document, Page } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api.js';
@@ -39,6 +39,7 @@ export const PdfViewer: React.FC = () => {
   const minSwipeDistance = 50;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>();
 
   // Debounce: só recalculamos o PDF em alta definição 200ms depois do
@@ -53,27 +54,69 @@ export const PdfViewer: React.FC = () => {
     return () => clearTimeout(timer);
   }, [scale]);
 
-  // Quando "renderScale" muda, as páginas (e os placeholders, que usam a
-  // mesma escala) mudam de altura de verdade — e o navegador NÃO compensa a
-  // rolagem sozinho, então o ponto que você estava lendo "foge" pra cima ou
-  // pra baixo. Aqui recalculamos a rolagem na mesma proporção do redesenho,
-  // ANTES do navegador pintar (useLayoutEffect), para que a transição seja
-  // invisível — em vez de deixar o conteúdo pular e só depois tentar
-  // corrigir (o que causava um pulo visível extra).
-  const prevRenderScaleRef = useRef(renderScale);
-  useLayoutEffect(() => {
+  // Guarda, a cada mudança de "scale", onde a borda superior da página atual
+  // está na tela AGORA MESMO — antes de qualquer redesenho acontecer.
+  const pageAnchorRef = useRef<{ page: number; offsetTop: number } | null>(null);
+  useEffect(() => {
     const container = containerRef.current;
-    const prevRenderScale = prevRenderScaleRef.current;
-    if (container && prevRenderScale !== renderScale) {
-      const ratio = renderScale / prevRenderScale;
-      const { scrollTop, scrollLeft, clientHeight, clientWidth } = container;
-      const centerY = scrollTop + clientHeight / 2;
-      const centerX = scrollLeft + clientWidth / 2;
-      container.scrollTop = centerY * ratio - clientHeight / 2;
-      container.scrollLeft = centerX * ratio - clientWidth / 2;
+    const pageEl = document.getElementById(`pdf-page-${currentPage}`);
+    if (container && pageEl) {
+      pageAnchorRef.current = {
+        page: currentPage,
+        offsetTop: pageEl.getBoundingClientRect().top - container.getBoundingClientRect().top,
+      };
     }
-    prevRenderScaleRef.current = renderScale;
+  }, [scale, currentPage]);
+
+  // O redesenho de verdade do PDF (quando "renderScale" alcança "scale")
+  // muda a altura real das páginas — mas isso acontece de forma assíncrona
+  // dentro do react-pdf/pdf.js, então não dá pra confiar no momento exato
+  // em que o React re-renderiza para saber quando o tamanho já mudou de
+  // verdade no DOM. Por isso, em vez de "adivinhar" o timing, observamos o
+  // tamanho real do conteúdo com ResizeObserver: sempre que ele muda de
+  // fato POR CAUSA DE UM ZOOM, colocamos a página atual de volta exatamente
+  // onde ela estava na tela (usando a âncora guardada acima) e
+  // recentralizamos horizontalmente.
+  const renderScaleRef = useRef(renderScale);
+  useEffect(() => {
+    renderScaleRef.current = renderScale;
   }, [renderScale]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const wrapper = wrapperRef.current;
+    if (!container || !wrapper || typeof ResizeObserver === 'undefined') return;
+
+    // Só corrige a rolagem vertical quando o redimensionamento observado
+    // realmente correspondeu a uma mudança de zoom já processada (evita
+    // "brigar" com a rolagem normal, quando páginas trocam de placeholder
+    // para renderizada e o wrapper também muda ligeiramente de altura).
+    let lastCorrectedRenderScale = renderScaleRef.current;
+
+    const resizeObserver = new ResizeObserver(() => {
+      const zoomChanged = renderScaleRef.current !== lastCorrectedRenderScale;
+      lastCorrectedRenderScale = renderScaleRef.current;
+
+      if (zoomChanged) {
+        const anchor = pageAnchorRef.current;
+        const pageEl = anchor ? document.getElementById(`pdf-page-${anchor.page}`) : null;
+        if (anchor && pageEl) {
+          const newOffsetTop = pageEl.getBoundingClientRect().top - container.getBoundingClientRect().top;
+          const delta = newOffsetTop - anchor.offsetTop;
+          if (Math.abs(delta) > 0.5) {
+            container.scrollTop += delta;
+          }
+        }
+        // O documento fica sempre centralizado na largura disponível, mesmo
+        // quando o zoom deixa o conteúdo mais largo que a área visível.
+        const maxScrollLeft = container.scrollWidth - container.clientWidth;
+        container.scrollLeft = Math.max(0, maxScrollLeft / 2);
+      }
+    });
+
+    resizeObserver.observe(wrapper);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => {
     if (viewMode !== 'scroll' || !numPages) return;
@@ -399,7 +442,7 @@ export const PdfViewer: React.FC = () => {
       {/* As páginas são desenhadas direto no "renderScale" (debounced) — sem
           truque de zoom CSS temporário por cima, que era a fonte da
           dessincronização entre o que aparecia na tela e a rolagem real. */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         <Document
           file={file}
           onLoadSuccess={onDocumentLoadSuccess}
