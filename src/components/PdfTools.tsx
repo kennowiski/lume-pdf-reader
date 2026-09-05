@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Loader2, ArrowUp, ArrowDown, X, Download, FileText, Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Loader2, ArrowUp, ArrowDown, X, Download, FileText, Image as ImageIcon, RotateCcw, Plus } from 'lucide-react';
 import { usePdfStore } from '../store/usePdfStore';
 import { useActiveTheme } from '../hooks/useActiveTheme';
 import { PDFDocument } from 'pdf-lib';
@@ -56,12 +56,26 @@ export const PdfTools: React.FC = () => {
     resetSelection();
   };
 
+  const fileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const incoming = Array.from(files).map((file) => ({ id: nextPendingId(), file }));
     setGenerated(null);
-    setPendingFiles(Array.from(files).map((file) => ({ id: nextPendingId(), file })));
+
+    if (activeTool === 'split') {
+      setPendingFiles(incoming);
+    } else {
+      setPendingFiles((prev) => {
+        const existingKeys = new Set(prev.map((pf) => fileKey(pf.file)));
+        const uniqueIncoming = incoming.filter((pf) => !existingKeys.has(fileKey(pf.file)));
+        return [...prev, ...uniqueIncoming];
+      });
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const moveFile = (index: number, direction: -1 | 1) => {
@@ -163,6 +177,7 @@ export const PdfTools: React.FC = () => {
   };
 
   const canReorder = activeTool === 'merge' || activeTool === 'image';
+  const canAddMore = activeTool !== 'split';
   const canGenerate = activeTool === 'split'
     ? pendingFiles.length === 1
     : pendingFiles.length >= (activeTool === 'merge' ? 2 : 1);
@@ -227,6 +242,14 @@ export const PdfTools: React.FC = () => {
         {pendingFiles.length > 0 && (
           <div className="mt-4">
             <div className={`rounded-xl border overflow-hidden mb-4 ${activeTheme === 'dark' ? 'bg-gray-800 border-gray-700' : activeTheme === 'sepia' ? 'bg-[#e9deb5] border-[#d4c391]' : 'bg-white border-gray-200'}`}>
+              {canAddMore && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full flex items-center justify-center gap-2 p-3 text-sm font-bold border-b transition-colors ${activeTheme === 'dark' ? 'border-gray-700 text-blue-400 hover:bg-gray-700' : 'border-gray-200 text-blue-600 hover:bg-gray-50'}`}
+                >
+                  <Plus size={16} /> Adicionar arquivos
+                </button>
+              )}
               {pendingFiles.map((pf, index) => (
                 <div
                   key={pf.id}
