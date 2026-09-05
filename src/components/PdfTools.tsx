@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { ArrowLeft, Loader2, ArrowUp, ArrowDown, X, Download, FileText, Image as ImageIcon, RotateCcw, Plus } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ArrowLeft, Loader2, GripVertical, X, Download, FileText, Image as ImageIcon, RotateCcw, Plus } from 'lucide-react';
 import { usePdfStore } from '../store/usePdfStore';
 import { useActiveTheme } from '../hooks/useActiveTheme';
 import { PDFDocument } from 'pdf-lib';
@@ -30,8 +30,12 @@ export const PdfTools: React.FC = () => {
 
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [generated, setGenerated] = useState<GeneratedFile | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const dragIndexRef = useRef<number | null>(null);
+
 
   const themeClasses = {
     light: 'bg-gray-100 text-gray-800',
@@ -78,14 +82,47 @@ export const PdfTools: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const moveFile = (index: number, direction: -1 | 1) => {
+  const moveDraggedTo = (targetIndex: number) => {
+    const from = dragIndexRef.current;
+    if (from === null || from === targetIndex) return;
     setPendingFiles((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
       const copy = [...prev];
-      [copy[index], copy[target]] = [copy[target], copy[index]];
+      const [moved] = copy.splice(from, 1);
+      copy.splice(targetIndex, 0, moved);
       return copy;
     });
+    dragIndexRef.current = targetIndex;
+    setDraggingIndex(targetIndex);
+  };
+
+  const handleDragPointerMove = (e: PointerEvent) => {
+    const rows = rowRefs.current;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      const rect = row.getBoundingClientRect();
+      if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        moveDraggedTo(i);
+        break;
+      }
+    }
+  };
+
+  const stopDragging = () => {
+    dragIndexRef.current = null;
+    setDraggingIndex(null);
+    window.removeEventListener('pointermove', handleDragPointerMove);
+    window.removeEventListener('pointerup', stopDragging);
+    window.removeEventListener('pointercancel', stopDragging);
+  };
+
+  const startDragging = (index: number) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    dragIndexRef.current = index;
+    setDraggingIndex(index);
+    window.addEventListener('pointermove', handleDragPointerMove);
+    window.addEventListener('pointerup', stopDragging);
+    window.addEventListener('pointercancel', stopDragging);
   };
 
   const removeFile = (id: string) => {
@@ -253,8 +290,18 @@ export const PdfTools: React.FC = () => {
               {pendingFiles.map((pf, index) => (
                 <div
                   key={pf.id}
-                  className={`flex items-center gap-3 p-3 ${index !== pendingFiles.length - 1 ? (activeTheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''}`}
+                  ref={(el) => { rowRefs.current[index] = el; }}
+                  className={`flex items-center gap-3 p-3 transition-shadow ${index !== pendingFiles.length - 1 ? (activeTheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''} ${draggingIndex === index ? `relative z-10 shadow-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}` : ''}`}
                 >
+                  {canReorder && (
+                    <button
+                      onPointerDown={startDragging(index)}
+                      title="Arrastar para reordenar"
+                      className={`p-1.5 -ml-1 rounded-lg shrink-0 cursor-grab active:cursor-grabbing touch-none select-none ${activeTheme === 'dark' ? 'text-gray-500 hover:bg-gray-700 hover:text-gray-300' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                    >
+                      <GripVertical size={18} />
+                    </button>
+                  )}
                   <span className={`w-6 text-center text-sm font-bold shrink-0 ${activeTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                     {index + 1}
                   </span>
@@ -262,27 +309,6 @@ export const PdfTools: React.FC = () => {
                     ? <ImageIcon size={18} className="shrink-0 text-blue-500" />
                     : <FileText size={18} className="shrink-0 text-blue-500" />}
                   <span className="flex-1 truncate text-sm">{pf.file.name}</span>
-
-                  {canReorder && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => moveFile(index, -1)}
-                        disabled={index === 0}
-                        title="Mover para cima"
-                        className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button
-                        onClick={() => moveFile(index, 1)}
-                        disabled={index === pendingFiles.length - 1}
-                        title="Mover para baixo"
-                        className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${activeTheme === 'dark' ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                      >
-                        <ArrowDown size={16} />
-                      </button>
-                    </div>
-                  )}
 
                   <button
                     onClick={() => removeFile(pf.id)}
