@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, GripVertical, X, Download, FileText, Image as ImageIcon, RotateCcw, Plus } from 'lucide-react';
 import { usePdfStore } from '../store/usePdfStore';
 import { useActiveTheme } from '../hooks/useActiveTheme';
@@ -16,6 +16,16 @@ interface GeneratedFile {
   filename: string;
 }
 
+interface DragGhost {
+  id: string;
+  name: string;
+  isImage: boolean;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}
+
 let pendingFileSeq = 0;
 const nextPendingId = () => `pf-${Date.now()}-${pendingFileSeq++}`;
 
@@ -30,12 +40,47 @@ export const PdfTools: React.FC = () => {
 
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [generated, setGenerated] = useState<GeneratedFile | null>(null);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragGhost, setDragGhost] = useState<DragGhost | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const dragIndexRef = useRef<number | null>(null);
+  const rowElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const ghostElRef = useRef<HTMLDivElement | null>(null);
+  const pendingFilesRef = useRef<PendingFile[]>([]);
+  const prevRectsRef = useRef<Map<string, DOMRect>>(new Map());
+  const dragIdRef = useRef<string | null>(null);
+  const grabOffsetRef = useRef({ x: 0, y: 0 });
 
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useLayoutEffect(() => {
+    const prevRects = prevRectsRef.current;
+    if (prevRects.size === 0) return;
+    prevRectsRef.current = new Map();
+
+    pendingFiles.forEach((pf) => {
+      const el = rowElsRef.current.get(pf.id);
+      const prevRect = prevRects.get(pf.id);
+      if (!el || !prevRect) return;
+      const newRect = el.getBoundingClientRect();
+      const deltaY = prevRect.top - newRect.top;
+      if (Math.abs(deltaY) < 1) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${deltaY}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 220ms ease';
+        el.style.transform = '';
+      });
+    });
+  }, [pendingFiles]);
+
+  useEffect(() => {
+    if (dragGhost && ghostElRef.current) {
+      ghostElRef.current.style.transform = `translate(${dragGhost.x}px, ${dragGhost.y}px)`;
+    }
+  }, [dragGhost]);
 
   const themeClasses = {
     light: 'bg-gray-100 text-gray-800',
@@ -82,25 +127,36 @@ export const PdfTools: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const captureRects = () => {
+    const map = new Map<string, DOMRect>();
+    rowElsRef.current.forEach((el, id) => map.set(id, el.getBoundingClientRect()));
+    prevRectsRef.current = map;
+  };
+
   const moveDraggedTo = (targetIndex: number) => {
-    const from = dragIndexRef.current;
-    if (from === null || from === targetIndex) return;
     setPendingFiles((prev) => {
+      const from = prev.findIndex((pf) => pf.id === dragIdRef.current);
+      if (from === -1 || from === targetIndex) return prev;
+      captureRects();
       const copy = [...prev];
       const [moved] = copy.splice(from, 1);
       copy.splice(targetIndex, 0, moved);
       return copy;
     });
-    dragIndexRef.current = targetIndex;
-    setDraggingIndex(targetIndex);
   };
 
   const handleDragPointerMove = (e: PointerEvent) => {
-    const rows = rowRefs.current;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row) continue;
-      const rect = row.getBoundingClientRect();
+    if (ghostElRef.current) {
+      const x = e.clientX - grabOffsetRef.current.x;
+      const y = e.clientY - grabOffsetRef.current.y;
+      ghostElRef.current.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    const files = pendingFilesRef.current;
+    for (let i = 0; i < files.length; i++) {
+      const el = rowElsRef.current.get(files[i].id);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
       if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
         moveDraggedTo(i);
         break;
@@ -109,17 +165,31 @@ export const PdfTools: React.FC = () => {
   };
 
   const stopDragging = () => {
-    dragIndexRef.current = null;
-    setDraggingIndex(null);
+    dragIdRef.current = null;
+    setDragGhost(null);
     window.removeEventListener('pointermove', handleDragPointerMove);
     window.removeEventListener('pointerup', stopDragging);
     window.removeEventListener('pointercancel', stopDragging);
   };
 
-  const startDragging = (index: number) => (e: React.PointerEvent) => {
+  const startDragging = (pf: PendingFile) => (e: React.PointerEvent) => {
     e.preventDefault();
-    dragIndexRef.current = index;
-    setDraggingIndex(index);
+    const el = rowElsRef.current.get(pf.id);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+
+    grabOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    dragIdRef.current = pf.id;
+    setDragGhost({
+      id: pf.id,
+      name: pf.file.name,
+      isImage: activeTool === 'image',
+      width: rect.width,
+      height: rect.height,
+      x: rect.left,
+      y: rect.top,
+    });
+
     window.addEventListener('pointermove', handleDragPointerMove);
     window.addEventListener('pointerup', stopDragging);
     window.addEventListener('pointercancel', stopDragging);
@@ -290,12 +360,15 @@ export const PdfTools: React.FC = () => {
               {pendingFiles.map((pf, index) => (
                 <div
                   key={pf.id}
-                  ref={(el) => { rowRefs.current[index] = el; }}
-                  className={`flex items-center gap-3 p-3 transition-shadow ${index !== pendingFiles.length - 1 ? (activeTheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''} ${draggingIndex === index ? `relative z-10 shadow-lg ${activeTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}` : ''}`}
+                  ref={(el) => {
+                    if (el) rowElsRef.current.set(pf.id, el);
+                    else rowElsRef.current.delete(pf.id);
+                  }}
+                  className={`flex items-center gap-3 p-3 ${index !== pendingFiles.length - 1 ? (activeTheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''} ${dragGhost?.id === pf.id ? 'opacity-30' : ''}`}
                 >
                   {canReorder && (
                     <button
-                      onPointerDown={startDragging(index)}
+                      onPointerDown={startDragging(pf)}
                       title="Arrastar para reordenar"
                       className={`p-1.5 -ml-1 rounded-lg shrink-0 cursor-grab active:cursor-grabbing touch-none select-none ${activeTheme === 'dark' ? 'text-gray-500 hover:bg-gray-700 hover:text-gray-300' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
                     >
@@ -349,6 +422,28 @@ export const PdfTools: React.FC = () => {
           </button>
         )}
       </main>
+
+      {dragGhost && (
+        <div
+          ref={ghostElRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: dragGhost.width,
+            height: dragGhost.height,
+            zIndex: 50,
+            pointerEvents: 'none',
+          }}
+          className={`flex items-center gap-3 p-3 rounded-lg border shadow-2xl scale-105 ${activeTheme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+        >
+          <GripVertical size={18} className={activeTheme === 'dark' ? 'text-gray-400' : 'text-gray-400'} />
+          {dragGhost.isImage
+            ? <ImageIcon size={18} className="shrink-0 text-blue-500" />
+            : <FileText size={18} className="shrink-0 text-blue-500" />}
+          <span className="flex-1 truncate text-sm">{dragGhost.name}</span>
+        </div>
+      )}
     </div>
   );
 };
